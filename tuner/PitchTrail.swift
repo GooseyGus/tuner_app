@@ -7,6 +7,7 @@ import SwiftUI
 struct PitchTrail: View {
     let history: [Tuner.Moment]
     let palette: Palette
+    var lineWidth: CGFloat = 4
 
     var body: some View {
         let tolerance = Tuner.Reading.inTuneCents
@@ -63,7 +64,7 @@ struct PitchTrail: View {
         context.stroke(
             path,
             with: .color(inTune ? palette.inTune : palette.offPitch),
-            style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
+            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
         )
     }
 

@@ -14,24 +14,43 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            header
-            noteDisplay
-                .padding(.top, 16)
-            CentsMeter(cents: tuner.reading?.cents, palette: palette)
-                .frame(height: 64)
-                .opacity(tuner.isHearing ? 1 : 0.35)
-            PitchTrail(history: tuner.history, palette: palette)
-                .frame(maxHeight: .infinity)
-            if !tuner.status.message.isEmpty {
-                Text(tuner.status.message)
-                    .font(.system(size: 13,  weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(palette.offPitch)
+        GeometryReader { geometry in
+            let size = geometry.size
+            let isLandscape = size.width > size.height
+            // 1 on an iPhone; larger on iPad, so everything grows with the screen.
+            let scale = isLandscape
+                ? min(size.width / 760, size.height / 360)
+                : min(size.width / 390, size.height / 800)
+
+            VStack(spacing: 24 * scale) {
+                header(scale: scale)
+                if isLandscape {
+                    // Sideways, the note sits on the left and the meter and trail on the right.
+                    HStack(spacing: 32 * scale) {
+                        noteDisplay(scale: scale)
+                            .frame(width: size.width * 0.4)
+                            .frame(maxHeight: .infinity)
+                        VStack(spacing: 16 * scale) {
+                            meter(scale: scale)
+                            trail(scale: scale)
+                        }
+                    }
+                } else {
+                    noteDisplay(scale: scale)
+                        .padding(.top, 16 * scale)
+                    meter(scale: scale)
+                    trail(scale: scale)
+                }
+                if !tuner.status.message.isEmpty {
+                    Text(tuner.status.message)
+                        .font(.system(size: 13 * scale, weight: .bold))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(palette.offPitch)
+                }
             }
+            .padding(.horizontal, 24 * scale)
+            .padding(.vertical, 16 * scale)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
         .foregroundStyle(palette.text)
         .background {
             palette.background
@@ -50,11 +69,11 @@ struct ContentView: View {
         }
     }
 
-    private var header: some View {
+    private func header(scale: CGFloat) -> some View {
         HStack {
             Text("TUNER APP")
-                .font(.system(size: 22, weight: .black))
-                .tracking(3)
+                .font(.system(size: 22 * scale, weight: .black))
+                .tracking(3 * scale)
             Spacer()
             PressButton(action: { paletteIndex = (paletteIndex + 1) % Palette.all.count }) {
                 // Shows the current palette as four stripes.
@@ -63,34 +82,47 @@ struct ContentView: View {
                         Rectangle().fill(palette.swatch[i])
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(palette.text, lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 12 * scale))
+                .overlay(RoundedRectangle(cornerRadius: 12 * scale).strokeBorder(palette.text, lineWidth: 1))
             }
-            .frame(width: 64, height: 44)
+            .frame(width: 64 * scale, height: 44 * scale)
             .accessibilityLabel("Change colour palette")
         }
     }
 
-    private var noteDisplay: some View {
+    private func noteDisplay(scale: CGFloat) -> some View {
         let reading = tuner.reading
-        return VStack(spacing: 8) {
-            HStack(alignment: .lastTextBaseline, spacing: 4) {
+        return VStack(spacing: 8 * scale) {
+            HStack(alignment: .lastTextBaseline, spacing: 4 * scale) {
                 Text(reading?.note.name ?? "–")
-                    .font(.system(size: 140, weight: .black))
+                    .font(.system(size: 140 * scale, weight: .black))
                 Text(reading.map { "\($0.note.octave)" } ?? "")
-                    .font(.system(size: 40, weight: .black))
+                    .font(.system(size: 40 * scale, weight: .black))
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
             .contentTransition(.identity)
 
             Text(reading.map { $0.isInTune ? "IN TUNE" : centsLabel($0.cents) } ?? "PLAY A NOTE")
-                .font(.system(size: 20, weight: .heavy))
-                .tracking(2)
+                .font(.system(size: 20 * scale, weight: .heavy))
+                .tracking(2 * scale)
             Text(reading.map { String(format: "%.1f HZ", $0.frequency) } ?? " ")
-                .font(.system(size: 15, weight: .bold).monospacedDigit())
+                .font(.system(size: 15 * scale, weight: .bold).monospacedDigit())
                 .opacity(0.6)
         }
         .opacity(tuner.isHearing || reading == nil ? 1 : 0.35)
         .accessibilityElement(children: .combine)
+    }
+
+    private func meter(scale: CGFloat) -> some View {
+        CentsMeter(cents: tuner.reading?.cents, palette: palette)
+            .frame(height: 64 * scale)
+            .opacity(tuner.isHearing ? 1 : 0.35)
+    }
+
+    private func trail(scale: CGFloat) -> some View {
+        PitchTrail(history: tuner.history, palette: palette, lineWidth: 4 * scale)
+            .frame(maxHeight: .infinity)
     }
 
     private func centsLabel(_ cents: Double) -> String {
@@ -127,8 +159,8 @@ struct CentsMeter: View {
                     Capsule()
                         .fill(abs(cents) < tolerance ? palette.inTune : palette.offPitch)
                         .overlay(Capsule().strokeBorder(palette.text, lineWidth: 1.5))
-                        .frame(width: 10, height: height)
-                        .offset(x: x(cents) - 5)
+                        .frame(width: height / 6.4, height: height)
+                        .offset(x: x(cents) - height / 12.8)
                         .animation(.easeOut(duration: 0.08), value: cents)
                 }
             }
