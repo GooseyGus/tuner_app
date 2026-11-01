@@ -113,15 +113,25 @@ final class Tuner {
 
         #if !os(macOS)
         // A phone call or another app can take the microphone away; pick up again afterwards.
-        observers.append(NotificationCenter.default.addObserver(
-            forName: AVAudioSession.resumptionRecommendationNotification, object: session, queue: .main
-        ) { [weak self] _ in
+        let resume: (Notification) -> Void = { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let engine = self?.engine else { return }
                 try? AVAudioSession.sharedInstance().setActive(true)
                 try? engine.start()
             }
-        })
+        }
+        if #available(iOS 27, *) {
+            observers.append(NotificationCenter.default.addObserver(
+                forName: AVAudioSession.resumptionRecommendationNotification, object: session, queue: .main, using: resume
+            ))
+        } else {
+            observers.append(NotificationCenter.default.addObserver(
+                forName: AVAudioSession.interruptionNotification, object: session, queue: .main
+            ) { notification in
+                let type = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                if type == AVAudioSession.InterruptionType.ended.rawValue { resume(notification) }
+            })
+        }
         #endif
     }
 
